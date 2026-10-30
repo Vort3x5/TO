@@ -1,0 +1,8 @@
+results/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.direnv/
+.pytest_cache/
+.DS_Store
