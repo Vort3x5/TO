@@ -14,12 +14,20 @@ from .codec import encode_with, verify_lossless
 from .image_io import load_gray, save_gray
 from .plotting import plot_benchmark_bars, plot_histogram
 from .predictors import all_predictors, get_predictor
+from .fetch_data import fetch_real_samples
 from .samples import generate_samples
 from .stats import analyze
 
 
 def _default_root() -> Path:
     return Path(__file__).resolve().parents[2]
+
+
+def _collect_images(data_dir: Path) -> list[Path]:
+    """PNG w katalogu i podkatalogach, bez `_raw`."""
+    return sorted(
+        p for p in data_dir.rglob("*.png") if "_raw" not in p.parts and p.is_file()
+    )
 
 
 def cmd_samples(args: argparse.Namespace) -> int:
@@ -29,6 +37,12 @@ def cmd_samples(args: argparse.Namespace) -> int:
     for p in paths:
         print(f"  {p.name}")
     return 0
+
+
+def cmd_fetch_data(args: argparse.Namespace) -> int:
+    paths = fetch_real_samples(args.out, max_side=args.max_side, force=args.force)
+    print(f"gotowe: {len(paths)} obrazów → {args.out}")
+    return 0 if paths else 1
 
 
 def cmd_list(_args: argparse.Namespace) -> int:
@@ -99,14 +113,17 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     hist_dir = out_dir / "histograms"
     hist_dir.mkdir(exist_ok=True)
 
-    if args.generate_samples or not data_dir.exists() or not any(data_dir.glob("*.png")):
-        print(f"generuję próbki → {data_dir}")
-        generate_samples(data_dir, size=args.size)
+    images = _collect_images(data_dir) if data_dir.exists() else []
+    if args.generate_samples or not images:
+        synth = data_dir / "samples" if data_dir.name == "data" else data_dir
+        print(f"generuję próbki syntetyczne → {synth}")
+        generate_samples(synth, size=args.size)
+        images = _collect_images(data_dir)
 
-    images = sorted(data_dir.glob("*.png"))
     if not images:
         print("brak obrazów w", data_dir, file=sys.stderr)
         return 1
+    print(f"obrazy ({len(images)}): " + ", ".join(p.name for p in images))
 
     names = _predictor_subset(args.predictors)
     csv_path = out_dir / "benchmark.csv"
@@ -197,6 +214,12 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--size", type=int, default=128)
     s.set_defaults(func=cmd_samples)
 
+    s = sub.add_parser("fetch-data", help="pobierz Kodak + Wikimedia → data/real")
+    s.add_argument("--out", default=str(root / "data" / "real"))
+    s.add_argument("--max-side", type=int, default=512, help="dłuższy bok grayscale PNG")
+    s.add_argument("--force", action="store_true", help="pobierz ponownie mimo istniejących plików")
+    s.set_defaults(func=cmd_fetch_data)
+
     s = sub.add_parser("list", help="lista trybów predykcji")
     s.set_defaults(func=cmd_list)
 
@@ -208,7 +231,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.set_defaults(func=cmd_run)
 
     s = sub.add_parser("benchmark", help="wszystkie obrazy × zestaw predyktorów → CSV/wykresy")
-    s.add_argument("--data", default=str(root / "data" / "samples"))
+    s.add_argument(
+        "--data",
+        default=str(root / "data"),
+        help="katalog z PNG (rekurencyjnie; domyślnie data/ = samples+real)",
+    )
     s.add_argument("--out", default=str(root / "results"))
     s.add_argument("--predictors", default="quick", help="quick | all | name1,name2,...")
     s.add_argument("--size", type=int, default=128)

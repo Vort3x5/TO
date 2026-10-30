@@ -7,19 +7,22 @@ Projekt z Techniki obrazowej: porównanie trybów predykcji, metryk reszt
 
 ```bash
 nix develop
-python -m predcomp.cli samples
+python -m predcomp.cli samples          # syntetyka → data/samples/
+python -m predcomp.cli fetch-data       # Kodak + Wikimedia → data/real/
 python -m predcomp.cli benchmark --predictors quick
-python -m predcomp.cli verify data/samples/edges.png
+python -m predcomp.cli verify data/real/kodak_kodim15.png
 ```
 
-Wyniki: `results/benchmark.csv`, `results/plots/`.
+Wyniki: `results/benchmark.csv`, `results/plots/`.  
+Źródła i licencje obrazów realnych: [`data/real/SOURCES.md`](data/real/SOURCES.md).
 
 | Komenda | Opis |
 |---|---|
 | `list` | tryby predykcji |
 | `samples` | syntetyczny zbiór PNG |
+| `fetch-data` | Kodak + Wikimedia (grayscale ≤512 px) |
 | `run IMAGE --predictor NAME` | jeden pomiar (+ opcjonalnie histogram) |
-| `benchmark` | CSV + wykresy (`quick` / `all` / lista) |
+| `benchmark` | CSV + wykresy (`data/` = samples+real) |
 | `verify IMAGE` | encode + test przyczynowości |
 
 ## Tryby predykcji
@@ -72,7 +75,8 @@ końcowa sprawozdania, podział procentowy wkładu zgodny z powyższym.
 ```
 flake.nix
 src/predcomp/     # kod
-data/samples/     # obrazy testowe
+data/samples/     # syntetyka (kontrolowane przypadki)
+data/real/        # Kodak + Wikimedia (SOURCES.md)
 results/          # CSV + wykresy (gitignore)
 ```
 
