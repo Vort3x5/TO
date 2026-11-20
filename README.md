@@ -1,4 +1,4 @@
-# TO — kompresja obrazu (kodowanie różnicowe / predykcyjne)
+# TO: kompresja obrazu (kodowanie różnicowe / predykcyjne)
 
 Projekt z Techniki obrazowej: porównanie trybów predykcji, metryk reszt
 (histogram, energia, entropia) oraz efektywności kodu Huffmana.
@@ -7,14 +7,14 @@ Projekt z Techniki obrazowej: porównanie trybów predykcji, metryk reszt
 
 ```bash
 nix develop
-python -m predcomp.cli samples          # syntetyka → data/samples/
-python -m predcomp.cli fetch-data       # Kodak + Wikimedia → data/real/
+python -m predcomp.cli samples
+python -m predcomp.cli fetch-data
 python -m predcomp.cli benchmark --predictors quick --summarize
-python -m predcomp.cli verify data/real/kodak_kodim15.png --full-decode --crop 24x40
-python -m predcomp.cli lpc2d data/real/kodak_kodim15.png
+python -m predcomp.cli verify data/real/kodak_kodim15.png --full-decode --crop 24x40 --lpc2d
+python -m predcomp.cli lpc2d data/real
 ```
 
-Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dane/`.  
+Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dane/`.
 Źródła obrazów: [`data/real/SOURCES.md`](data/real/SOURCES.md).
 
 | Komenda | Opis |
@@ -24,63 +24,60 @@ Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dan
 | `fetch-data` | Kodak + Wikimedia (skala szarości ≤512 px) |
 | `run IMAGE --predictor NAME` | jeden pomiar (`--hist-out`, `--show-codes`, `--mod256`) |
 | `benchmark` | CSV + wykresy (`quick` / `all` / `lpc_row` / lista) |
-| `summarize` | `best_per_image.csv`, `mean_by_predictor.csv` |
-| `lpc2d IMAGE` | LPC 2D z side-info, kompromis vs rozmiar bloku |
-| `verify IMAGE` | przyczynowość; `--full-decode --crop HxW` |
+| `summarize` | `best_per_image.csv`, `mean_by_predictor.csv` (remisy = wspólne wygrane) |
+| `lpc2d PATH` | LPC 2D z side-info (plik lub katalog) |
+| `verify IMAGE` | przyczynowość; `--full-decode --crop HxW`; `--lpc2d` |
 
 ## Tryby predykcji
 
 - **Sąsiedzi:** `left`, `above`, `two_left`, `three_left`, `two_above`
 - **Funkcje:** `avg2`, `avg3`, `planar`, `weighted`, `quadratic_row`, `median`, `med` (JPEG-LS), `paeth`
-- **LPC 1D:** `lpc_{row,col}_o{1,2,3}_b{8,16,32,64}` (bez side-info; pierwszy segment = left)
-- **LPC 2D:** CLI `lpc2d` (A,B,C,D + współczynniki jako side-info)
+- **LPC 1D:** `lpc_{row,col}_o{1,2,3}_b{8,16,32,64}` (współczynniki w stałym przecinku; pierwszy segment = left)
+- **LPC 2D:** CLI `lpc2d` (A,B,C,D + współczynniki jako informacja dodatkowa; przy prawej krawędzi D=B)
 - **Adaptacja:** `selector_b8` – lokalny wybór {left, above, planar}
 
-Predyktory w rejestrze są przyczynowe (bez side-info). LPC 2D dokłada narzut na współczynniki.
+Predyktory w rejestrze są przyczynowe. LPC 2D dokłada narzut na współczynniki.
 
 ## Architektura (krótko)
 
-Każdy predyktor to `predict_map(img) → macierz float` (NumPy, zwektoryzowane).
-Encode: `reszty = img − round(clip(predykcja))`. Metryki i Huffman liczone z
-`np.unique` (jeden przebieg).
+Każdy predyktor to `predict_map(img)` → macierz float (NumPy).
+Kodowanie: `reszty = img − round(clip(predykcja))`. Metryki i Huffman z `np.unique`.
 
 ## Podział pracy (4 osoby)
 
-Równy wkład w kod + wspólną część sprawozdania. Każda osoba jest **właścicielem**
-swojego modułu i sekcji w sprawozdaniu; integracja i wnioski końcowe — razem.
+Równy wkład w kod i wspólną część sprawozdania. Każda osoba jest właścicielem
+swojego modułu i sekcji; integracja i wnioski końcowe – razem.
 
-### Osoba A — Infrastruktura i I/O
-- `flake.nix`, uruchamialność (`nix develop`), `README`
-- `image_io.py`, `samples.py`, CLI: `samples` / szkielet `cli.py`
-- zbiór testowy (syntetyka + ewentualnie 1–2 zdjęcia własne)
-- w sprawozdaniu: cel, wymagania, opis danych testowych
+### Osoba A: infrastruktura i I/O
+- `flake.nix`, `nix develop`, `README`
+- `image_io.py`, `samples.py`, szkielet CLI
+- zbiór testowy; w sprawozdaniu: cel, opis danych
 
-### Osoba B — Predyktory
-- `predictors.py`: sąsiedzi, avg/planar/wagi, kwadratowa, mediana, MED, Paeth
-- LPC 1D (wiersz/kolumna, rzędy i długości bloków), `selector_b8`, `lpc2d.py`
-- w sprawozdaniu: opis trybów, poprawka pierwszego segmentu LPC
+### Osoba B: predyktory
+- `predictors.py`, `lpc2d.py` (sąsiedzi, MED, Paeth, LPC 1D/2D, selector)
+- w sprawozdaniu: opis trybów, poprawki LPC
 
-### Osoba C — Metryki i Huffman
-- `stats.py`, `huffman.py`, `codec.py` (encode / weryfikacja / full-decode)
-- CLI: `run`, `verify`; energia na piksel, książka kodowa
-- w sprawozdaniu: energia/entropia, Huffman vs $H$, bezstratność
+### Osoba C: metryki i Huffman
+- `stats.py`, `huffman.py`, `codec.py`
+- CLI `run` / `verify`; energia, książka kodowa, dekodowanie
+- w sprawozdaniu: metryki, Huffman wobec $H$, bezstratność
 
-### Osoba D — Eksperymenty i sprawozdanie zbiorcze
-- `plotting.py`, CLI: `benchmark`, `summarize`, `lpc2d`, wyniki
-- dobór tabel i wykresów, redakcja `sprawozdanie/`
-- w sprawozdaniu: wyniki, porównanie trybów, wnioski, podział zadań
+### Osoba D: eksperymenty i sprawozdanie
+- `plotting.py`, `benchmark`, `summarize`, `lpc2d`, wyniki
+- redakcja `sprawozdanie/`; wnioski i podział zadań
 
-**Wspólne (wszyscy):** spotkania z prowadzącym, review PR/commitów, redakcja
-końcowa sprawozdania, podział procentowy wkładu zgodny z powyższym.
+**Wspólne:** spotkania z prowadzącym, przegląd zmian, redakcja końcowa,
+podział procentowy wkładu zgodny z powyższym.
 
 ## Struktura repo
 
 ```
 flake.nix
-src/predcomp/     # kod
-data/samples/     # syntetyka (kontrolowane przypadki)
-data/real/        # Kodak + Wikimedia (SOURCES.md)
-results/          # CSV + wykresy (gitignore)
+src/predcomp/
+data/samples/
+data/real/
+results/          # gitignore
+sprawozdanie/     # Typst + dane CSV + figs
 ```
 
 ## Zależności (Nix)

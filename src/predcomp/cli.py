@@ -15,7 +15,7 @@ from .codec import encode_with, verify_lossless
 from .fetch_data import fetch_real_samples
 from .huffman import codebook_overhead_bits
 from .image_io import load_gray, save_gray
-from .lpc2d import encode_lpc2d
+from .lpc2d import encode_lpc2d, verify_lpc2d
 from .plotting import (
     plot_benchmark_bars,
     plot_histogram,
@@ -249,22 +249,29 @@ def _write_summaries(csv_path: Path, out_dir: Path) -> None:
     for r in rows:
         by_img[r["image"]].append(r)
 
+    # remisy: wszyscy z minimalnym H liczą się jako współzwycięzcy
+    winners_per_img: dict[str, list] = {}
     best_path = out_dir / "best_per_image.csv"
     with best_path.open("w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["image", "H0", "best", "H", "Huff", "delta", "residual_energy_pp"])
+        w.writerow(["image", "H0", "best", "H", "Huff", "delta", "residual_energy_pp", "n_tied"])
         for img, rs in sorted(by_img.items()):
-            best = min(rs, key=lambda x: x["H"])
+            min_h = min(x["H"] for x in rs)
+            tied = [x for x in rs if abs(x["H"] - min_h) < 1e-9]
+            winners_per_img[img] = [x["predictor"] for x in tied]
+            best = tied[0]
             epp = best.get("residual_energy_pp", "")
+            names = "|".join(sorted(x["predictor"] for x in tied))
             w.writerow(
                 [
                     img,
                     f"{best['H0']:.3f}",
-                    best["predictor"],
+                    names,
                     f"{best['H']:.3f}",
                     f"{best['Huff']:.3f}",
                     f"{best['d']:+.3f}",
                     epp,
+                    len(tied),
                 ]
             )
 
@@ -277,16 +284,12 @@ def _write_summaries(csv_path: Path, out_dir: Path) -> None:
         mean_h = sum(x["H"] for x in rs) / len(rs)
         mean_hf = sum(x["Huff"] for x in rs) / len(rs)
         mean_d = sum(x["d"] for x in rs) / len(rs)
-        wins = sum(
-            1
-            for irs in by_img.values()
-            if min(irs, key=lambda x: x["H"])["predictor"] == p
-        )
+        wins = sum(1 for names in winners_per_img.values() if p in names)
         stats.append((mean_h, p, mean_hf, mean_d, wins))
     stats.sort()
     with mean_path.open("w", newline="") as f:
         w = csv.writer(f)
-        w.writerow(["predictor", "mean_H", "mean_Huff", "mean_delta", "wins"])
+        w.writerow(["predictor", "mean_H", "mean_Huff", "mean_delta", "wins_incl_ties"])
         for mean_h, p, mean_hf, mean_d, wins in stats:
             w.writerow([p, f"{mean_h:.3f}", f"{mean_hf:.3f}", f"{mean_d:+.3f}", wins])
     print(f"podsumowania: {best_path}, {mean_path}")
@@ -304,10 +307,15 @@ def cmd_summarize(args: argparse.Namespace) -> int:
 
 
 def cmd_lpc2d(args: argparse.Namespace) -> int:
-    img = load_gray(args.image)
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     blocks = [int(b) for b in args.blocks.split(",") if b.strip()]
+    path = Path(args.image)
+    images = _collect_images(path) if path.is_dir() else [path]
+    if not images:
+        print("brak obrazów", path, file=sys.stderr)
+        return 1
+
     csv_path = out_dir / "lpc2d.csv"
     fieldnames = [
         "image",
@@ -317,35 +325,79 @@ def cmd_lpc2d(args: argparse.Namespace) -> int:
         "sideinfo_bpp",
         "total_bpp",
         "n_blocks",
+        "med_H",
+        "best_total",
     ]
-    rows = []
-    stem = Path(args.image).stem
-    print(f"LPC 2D na {args.image}  shape={img.shape}")
-    for b in blocks:
-        r = encode_lpc2d(img, block=b, coeff_bits=args.coeff_bits)
-        row = {
-            "image": stem,
-            "block": b,
-            "residual_entropy": f"{r.residual_entropy:.6f}",
-            "huffman_avg_bits": f"{r.huffman_avg_bits:.6f}",
-            "sideinfo_bpp": f"{r.sideinfo_bits_per_pix:.6f}",
-            "total_bpp": f"{r.total_bits_per_pix:.6f}",
-            "n_blocks": r.n_blocks,
-        }
-        rows.append(row)
+    rows: list[dict] = []
+    for img_path in images:
+        img = load_gray(img_path)
+        stem = img_path.stem
+        med_h = analyze(encode_with(img, get_predictor("med"))[0]).entropy
+        print(f"\nLPC 2D: {img_path.name}  shape={img.shape}  med_H={med_h:.3f}")
+        best_total = float("inf")
+        best_block = blocks[0]
+        for b in blocks:
+            r = encode_lpc2d(img, block=b)
+            row = {
+                "image": stem,
+                "block": b,
+                "residual_entropy": f"{r.residual_entropy:.6f}",
+                "huffman_avg_bits": f"{r.huffman_avg_bits:.6f}",
+                "sideinfo_bpp": f"{r.sideinfo_bits_per_pix:.6f}",
+                "total_bpp": f"{r.total_bits_per_pix:.6f}",
+                "n_blocks": r.n_blocks,
+                "med_H": f"{med_h:.6f}",
+                "best_total": "",
+            }
+            rows.append(row)
+            print(
+                f"  B={b:3d}  H={r.residual_entropy:.3f}  "
+                f"side={r.sideinfo_bits_per_pix:.3f}  "
+                f"suma={r.total_bits_per_pix:.3f}"
+            )
+            if r.total_bits_per_pix < best_total:
+                best_total = r.total_bits_per_pix
+                best_block = b
+        for row in rows:
+            if row["image"] == stem:
+                row["best_total"] = f"{best_total:.6f}" if int(row["block"]) == best_block else ""
         print(
-            f"  B={b:3d}  H={r.residual_entropy:.3f}  "
-            f"side={r.sideinfo_bits_per_pix:.3f}  "
-            f"suma={r.total_bits_per_pix:.3f}"
+            f"  najlepsza suma: B={best_block}  {best_total:.3f}  "
+            f"(med={med_h:.3f}, Δ={best_total - med_h:+.3f})"
         )
+
     with csv_path.open("w", newline="") as f:
         w = csv.DictWriter(f, fieldnames=fieldnames)
         w.writeheader()
         w.writerows(rows)
-    plot_path = out_dir / "plots" / f"{stem}_lpc2d.png"
-    plot_lpc2d_tradeoff(csv_path, plot_path)
-    print(f"CSV: {csv_path}")
-    print(f"wykres: {plot_path}")
+
+    plots_dir = out_dir / "plots"
+    plots_dir.mkdir(exist_ok=True)
+    # wykres tylko dla pierwszego obrazu (lub gdy jeden)
+    for stem in {r["image"] for r in rows}:
+        stem_rows = [r for r in rows if r["image"] == stem]
+        tmp = out_dir / f"_tmp_{stem}_lpc2d.csv"
+        with tmp.open("w", newline="") as f:
+            w = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "image",
+                    "block",
+                    "residual_entropy",
+                    "huffman_avg_bits",
+                    "sideinfo_bpp",
+                    "total_bpp",
+                    "n_blocks",
+                ],
+            )
+            w.writeheader()
+            for r in stem_rows:
+                w.writerow({k: r[k] for k in w.fieldnames})
+        plot_lpc2d_tradeoff(tmp, plots_dir / f"{stem}_lpc2d.png")
+        tmp.unlink(missing_ok=True)
+
+    print(f"\nCSV: {csv_path}")
+    print(f"wykresy: {plots_dir}")
     return 0
 
 
@@ -364,6 +416,13 @@ def cmd_verify(args: argparse.Namespace) -> int:
         print(f"{status:4s}  {pname}")
         if not ok:
             failed += 1
+    if args.lpc2d:
+        for b in (8, 16, 32, 64):
+            ok = verify_lpc2d(img, block=b, crop=crop or (24, 40))
+            status = "OK" if ok else "FAIL"
+            print(f"{status:4s}  lpc2d_b{b}")
+            if not ok:
+                failed += 1
     return 1 if failed else 0
 
 
@@ -431,25 +490,29 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--out", default=str(root / "results"))
     s.set_defaults(func=cmd_summarize)
 
-    s = sub.add_parser("lpc2d", help="LPC 2D z side-info (kompromis blok vs narzut)")
-    s.add_argument("image")
+    s = sub.add_parser("lpc2d", help="LPC 2D z side-info (plik lub katalog PNG)")
+    s.add_argument("image", help="PNG albo katalog z PNG")
     s.add_argument("--blocks", default="8,16,32,64")
-    s.add_argument("--coeff-bits", type=int, default=10)
     s.add_argument("--out", default=str(root / "results"))
     s.set_defaults(func=cmd_lpc2d)
 
-    s = sub.add_parser("verify", help="przyczynowość (+ opcjonalnie pełne decode)")
+    s = sub.add_parser("verify", help="przyczynowość (+ opcjonalnie pełne dekodowanie)")
     s.add_argument("image")
     s.add_argument("--predictors", default="quick")
     s.add_argument(
         "--full-decode",
         action="store_true",
-        help="sekwencyjne decode (wolne; używaj z --crop)",
+        help="sekwencyjne dekodowanie (wolne; używaj z --crop)",
     )
     s.add_argument(
         "--crop",
         default=None,
-        help="wycinek HxW do full-decode, np. 24x40",
+        help="wycinek HxW do pełnego dekodowania, np. 24x40",
+    )
+    s.add_argument(
+        "--lpc2d",
+        action="store_true",
+        help="dodatkowo sprawdź dekoder LPC 2D (domyślnie wycinek 24x40)",
     )
     s.set_defaults(func=cmd_verify)
 

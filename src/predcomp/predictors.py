@@ -113,6 +113,17 @@ def pred_quadratic_row(img: np.ndarray) -> np.ndarray:
     return out
 
 
+LPC_COEFF_BITS = 10
+
+
+def quantize_lpc_coeffs(coeffs: np.ndarray, bits: int = LPC_COEFF_BITS) -> np.ndarray:
+    """Współczynniki w przybliżeniu [-2, 2] na `bits` bitów (odzwarzalne między maszynami)."""
+    levels = (1 << bits) - 1
+    scale = levels / 4.0
+    q = np.clip(np.rint((coeffs + 2.0) * scale), 0, levels)
+    return q / scale - 2.0
+
+
 def _fit_lpc(samples: np.ndarray, order: int) -> np.ndarray | None:
     n = samples.size
     if n <= order or order < 1:
@@ -123,14 +134,14 @@ def _fit_lpc(samples: np.ndarray, order: int) -> np.ndarray | None:
         coeffs, *_ = np.linalg.lstsq(x, y, rcond=None)
     except np.linalg.LinAlgError:
         return None
-    return coeffs
+    return quantize_lpc_coeffs(coeffs.astype(np.float64))
 
 
 def _lpc_line(line: np.ndarray, order: int, block: int) -> np.ndarray:
     """LPC 1D: współczynniki stałe w segmencie `block`, z poprzedniego okna.
 
-    Pierwszy segment (i każda nieudana estymacja) używa predykcji left,
-    żeby nie zostawiać zerowej mapy predykcji.
+    Pierwszy segment (i nieudana estymacja) używa predykcji left.
+    Współczynniki są kwantowane do stałego przecinka.
     """
     n = line.size
     out = np.zeros(n, dtype=np.float64)
@@ -148,7 +159,6 @@ def _lpc_line(line: np.ndarray, order: int, block: int) -> np.ndarray:
                 out[i] = line[i - 1] if i > 0 else 0.0
             continue
 
-        # początek rzędu / za mało historii: left
         i0 = seg_start
         while i0 < seg_end and i0 < order:
             out[i0] = line[i0 - 1] if i0 > 0 else 0.0
