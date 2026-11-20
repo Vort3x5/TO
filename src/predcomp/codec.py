@@ -46,20 +46,27 @@ def decode(residuals: np.ndarray, predict_map: PredictMap) -> np.ndarray:
     return recon
 
 
-def verify_lossless(image: np.ndarray, predictor_name: str, *, full_decode: bool = False) -> bool:
+def verify_lossless(
+    image: np.ndarray,
+    predictor_name: str,
+    *,
+    full_decode: bool = False,
+    crop: tuple[int, int] | None = None,
+) -> bool:
     """
-    Szybka weryfikacja: tożsamość encode + przyczynowość predyktora.
-    full_decode=True uruchamia wolne sekwencyjne decode.
+    Weryfikacja:
+    1) przyczynowość (predykcja na obrazie obciętym od punktu cięcia),
+    2) opcjonalnie pełne sekwencyjne decode (wolne; sensowne na wycinku).
+
+    Samo `pred_q + residuals == img` wynika z definicji encode i nie jest
+    wystarczającym testem bezstratności.
     """
     img = np.asarray(image, dtype=np.uint8)
+    if crop is not None:
+        ch, cw = crop
+        img = img[:ch, :cw]
     pred = get_predictor(predictor_name)
-    residuals, recon = encode_with(img, pred)
-    if not np.array_equal(img, recon):
-        return False
-
-    pred_q = quantize_pred(pred.fn(img))
-    if not np.array_equal(pred_q + residuals, img.astype(np.int16)):
-        return False
+    residuals, _ = encode_with(img, pred)
 
     h, w = img.shape
     y0, x0 = max(h // 2, 1), max(w // 2, 1)
@@ -72,7 +79,7 @@ def verify_lossless(image: np.ndarray, predictor_name: str, *, full_decode: bool
         return False
 
     if full_decode:
-        decoded = decode(residuals, get_predictor(predictor_name).fn)
+        decoded = decode(residuals, pred.fn)
         if not np.array_equal(img, decoded):
             return False
     return True

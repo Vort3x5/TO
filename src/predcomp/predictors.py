@@ -61,6 +61,15 @@ def pred_median(img: np.ndarray) -> np.ndarray:
     return a + b + c - amin - amax
 
 
+def pred_med(img: np.ndarray) -> np.ndarray:
+    """MED z JPEG-LS: mediana(A, B, A+B−C)."""
+    a, b, c = _neighbors(img)
+    d = a + b - c
+    amin = np.minimum(np.minimum(a, b), d)
+    amax = np.maximum(np.maximum(a, b), d)
+    return a + b + d - amin - amax
+
+
 def pred_paeth(img: np.ndarray) -> np.ndarray:
     a, b, c = _neighbors(img)
     p = a + b - c
@@ -118,7 +127,11 @@ def _fit_lpc(samples: np.ndarray, order: int) -> np.ndarray | None:
 
 
 def _lpc_line(line: np.ndarray, order: int, block: int) -> np.ndarray:
-    """LPC wzdłuż 1D: współczynniki stałe w segmencie `block`, z poprzedniego okna."""
+    """LPC 1D: współczynniki stałe w segmencie `block`, z poprzedniego okna.
+
+    Pierwszy segment (i każda nieudana estymacja) używa predykcji left,
+    żeby nie zostawiać zerowej mapy predykcji.
+    """
     n = line.size
     out = np.zeros(n, dtype=np.float64)
     for seg_start in range(0, n, block):
@@ -131,20 +144,18 @@ def _lpc_line(line: np.ndarray, order: int, block: int) -> np.ndarray:
             coeffs = _fit_lpc(window, order)
 
         if coeffs is None:
-            if seg_start < seg_end and seg_start > 0:
-                out[seg_start:seg_end] = line[seg_start - 1 : seg_end - 1]
+            for i in range(seg_start, seg_end):
+                out[i] = line[i - 1] if i > 0 else 0.0
             continue
 
-        # początek segmentu / rząd: za mało historii → left
+        # początek rzędu / za mało historii: left
         i0 = seg_start
         while i0 < seg_end and i0 < order:
-            if i0 > 0:
-                out[i0] = line[i0 - 1]
+            out[i0] = line[i0 - 1] if i0 > 0 else 0.0
             i0 += 1
         if i0 >= seg_end:
             continue
 
-        # stałe współczynniki → splot z historią (zwektoryzowany dla małych rzędów)
         a = coeffs
         if order == 1:
             out[i0:seg_end] = a[0] * line[i0 - 1 : seg_end - 1]
@@ -195,7 +206,12 @@ def make_lpc_col(order: int, block: int) -> PredictMap:
 
 
 def make_selector(block: int = 8) -> PredictMap:
-    """W bloku wybierz {left, above, planar} wg energii na ramce przyczynowej."""
+    """W bloku wybierz {left, above, planar} wg energii na dostępnej ramce przyczynowej.
+
+    Ramka: wiersz nad blokiem (y=by-1, x∈[bx,x1)), opcjonalnie kolumna bx-1
+    z wierszy bloku *powyżej*, oraz lewa krawędź bieżącego wiersza bloku
+    (y=by, x∈[bx-block,bx)) gdy bx>0. Nie używamy pikseli wewnątrz bloku.
+    """
 
     def predict(img: np.ndarray) -> np.ndarray:
         maps = (pred_left(img), pred_above(img), pred_planar(img))
@@ -248,6 +264,7 @@ def _build_registry() -> dict[str, Predictor]:
         Predictor("weighted", pred_weighted, "0.75A + 0.25B"),
         Predictor("quadratic_row", pred_quadratic_row, "ekstrapolacja kwadratowa w wierszu"),
         Predictor("median", pred_median, "mediana(A,B,C)"),
+        Predictor("med", pred_med, "MED JPEG-LS: mediana(A,B,A+B-C)"),
         Predictor("paeth", pred_paeth, "Paeth (PNG)"),
     ]
     for order in (1, 2, 3):

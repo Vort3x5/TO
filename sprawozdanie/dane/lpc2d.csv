@@ -1,0 +1,5 @@
+image,block,residual_entropy,huffman_avg_bits,sideinfo_bpp,total_bpp,n_blocks
+kodak_kodim15,8,4.033254,4.062082,0.630499,4.663753,2752
+kodak_kodim15,16,4.118826,4.144829,0.161290,4.280116,704
+kodak_kodim15,32,4.225796,4.258294,0.040323,4.266119,176
+kodak_kodim15,64,4.312182,4.353115,0.010997,4.323179,48
