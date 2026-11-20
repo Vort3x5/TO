@@ -1,4 +1,4 @@
-"""Tryby predykcji: każdy zwraca pełną mapę predykcji (przyczynową w.r.t. raster)."""
+"""Tryby predykcji: każdy zwraca pełną mapę predykcji (przyczynową względem rastra)."""
 
 from __future__ import annotations
 
@@ -119,9 +119,23 @@ LPC_FRAC = 256
 LPC_COEFF_BITS = 11
 
 
-def quantize_lpc_coeffs(coeffs: np.ndarray, frac: int = LPC_FRAC) -> np.ndarray:
-    """Kwantyzacja: round(c·frac)/frac, zakres [-2, 2] włącznie."""
-    k = np.clip(np.rint(coeffs * frac), -2 * frac, 2 * frac)
+def quantize_lpc_coeffs(
+    coeffs: np.ndarray,
+    frac: int = LPC_FRAC,
+    *,
+    force_sum_one: bool = True,
+) -> np.ndarray:
+    """Kwantyzacja: round(c·frac)/frac, zakres [-2, 2].
+
+    Przy force_sum_one poprawiamy ostatni współczynnik tak, by suma k równała
+    się frac (czyli suma c = 1) – potrzebne przy osobliwym lstsq, które zwraca
+    (1/3,1/3,1/3) nieprzedstawialne dokładnie na siatce 1/256.
+    """
+    k = np.clip(np.rint(np.asarray(coeffs, dtype=np.float64) * frac), -2 * frac, 2 * frac)
+    if force_sum_one and k.size > 0:
+        k = k.copy()
+        k[-1] += frac - int(k.sum())
+        k[-1] = float(np.clip(k[-1], -2 * frac, 2 * frac))
     return k / float(frac)
 
 
@@ -131,6 +145,9 @@ def _fit_lpc(samples: np.ndarray, order: int) -> np.ndarray | None:
         return None
     y = samples[order:]
     x = np.column_stack([samples[order - 1 - k : n - 1 - k] for k in range(order)])
+    # osobliwy / niedookreślony układ → left (stabilniej niż min-norma lstsq)
+    if np.linalg.matrix_rank(x, tol=1e-6) < order:
+        return None
     try:
         coeffs, *_ = np.linalg.lstsq(x, y, rcond=None)
     except np.linalg.LinAlgError:

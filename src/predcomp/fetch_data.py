@@ -27,7 +27,7 @@ class RemoteImage:
 
 
 # Kodak Lossless True Color Image Suite – https://r0k.us/graphics/kodak/
-# (Eastman Kodak, udostępnione do nieograniczonego użytku wg maintainerów zestawu)
+# (Eastman Kodak, udostępnione do nieograniczonego użytku wg opiekunów zestawu)
 KODAK = [
     RemoteImage(
         "kodak_kodim05",

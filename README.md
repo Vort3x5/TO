@@ -10,10 +10,11 @@ nix develop
 python -m predcomp.cli samples
 python -m predcomp.cli fetch-data
 python -m predcomp.cli benchmark --predictors quick --summarize
-python -m predcomp.cli verify data/real/kodak_kodim15.png --full-decode --crop 24x40 --lpc2d
-# LPC 2D: domyślny wycinek weryfikacji 140x140
+python -m predcomp.cli verify data/real/kodak_kodim15.png --full-decode --crop 24x40
+python -m predcomp.cli verify data/real/kodak_kodim15.png --predictors left --lpc2d
 python -m predcomp.cli lpc2d data/real
 ```
+
 
 Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dane/`.
 Źródła obrazów: [`data/real/SOURCES.md`](data/real/SOURCES.md).
@@ -26,15 +27,15 @@ Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dan
 | `run IMAGE --predictor NAME` | jeden pomiar (`--hist-out`, `--show-codes`, `--mod256`) |
 | `benchmark` | CSV + wykresy (`quick` / `all` / `lpc_row` / lista) |
 | `summarize` | `best_per_image.csv`, `mean_by_predictor.csv` (remisy = wspólne wygrane) |
-| `lpc2d PATH` | LPC 2D z side-info (plik lub katalog) |
-| `verify IMAGE` | przyczynowość; `--full-decode --crop HxW`; `--lpc2d` |
+| `lpc2d PATH` | LPC 2D z informacją dodatkową (plik lub katalog) |
+| `verify IMAGE` | przyczynowość; `--full-decode --crop HxW`; `--lpc2d` / `--lpc2d-crop` |
 
 ## Tryby predykcji
 
 - **Sąsiedzi:** `left`, `above`, `two_left`, `three_left`, `two_above`
 - **Funkcje:** `avg2`, `avg3`, `planar`, `weighted`, `quadratic_row`, `median`, `med` (JPEG-LS), `paeth`
 - **LPC 1D:** `lpc_{row,col}_o{1,2,3}_b{8,16,32,64}` (współczynniki `round(c·256)/256`; pierwszy segment = left)
-- **LPC 2D:** CLI `lpc2d` (A,B,C,D + side-info 11 bit/współczynnik; przy prawej krawędzi D=B)
+- **LPC 2D:** CLI `lpc2d` (A,B,C,D + 11 bit/współczynnik; przy prawej krawędzi D=B)
 - **Adaptacja:** `selector_b8` – lokalny wybór {left, above, planar}
 
 Predyktory w rejestrze są przyczynowe. LPC 2D dokłada narzut na współczynniki.

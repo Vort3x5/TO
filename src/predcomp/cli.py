@@ -417,7 +417,12 @@ def cmd_verify(args: argparse.Namespace) -> int:
         if not ok:
             failed += 1
     if args.lpc2d:
-        lpc_crop = crop or (140, 140)
+        # --crop dotyczy tylko rejestru; LPC 2D ma osobny wycinek (domyślnie 140x140)
+        if args.lpc2d_crop:
+            lch, lcw = (int(x) for x in args.lpc2d_crop.split("x"))
+            lpc_crop = (lch, lcw)
+        else:
+            lpc_crop = (140, 140)
         print(f"LPC 2D: wycinek {lpc_crop[0]}x{lpc_crop[1]}")
         for b in (8, 16, 32, 64):
             ok = verify_lpc2d(img, block=b, crop=lpc_crop)
@@ -509,12 +514,17 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--crop",
         default=None,
-        help="wycinek HxW do pełnego dekodowania, np. 24x40",
+        help="wycinek HxW dla predyktorów z rejestru, np. 24x40",
     )
     s.add_argument(
         "--lpc2d",
         action="store_true",
-        help="dodatkowo sprawdź dekoder LPC 2D (domyślnie wycinek 140x140)",
+        help="dodatkowo sprawdź dekoder LPC 2D",
+    )
+    s.add_argument(
+        "--lpc2d-crop",
+        default=None,
+        help="wycinek HxW tylko dla LPC 2D (domyślnie 140x140; niezależny od --crop)",
     )
     s.set_defaults(func=cmd_verify)
 
