@@ -1,8 +1,8 @@
 image,H0,best,H,Huff,delta,residual_energy_pp,n_tied
 checker,1.000,med|paeth|planar,0.131,1.016,+0.884,1012.0468,3
 edges,2.033,selector_b8,0.160,1.046,+0.886,331.6422,1
-gradient_h,7.000,med|paeth|planar,0.066,1.008,+0.942,0.0313,3
-gradient_v,7.000,lpc_row_o1_b16|med|paeth|planar,0.066,1.008,+0.942,0.0313,4
+gradient_h,7.000,lpc_col_o2_b16|med|paeth|planar,0.066,1.008,+0.942,0.0313,4
+gradient_v,7.000,lpc_row_o1_b16|lpc_row_o2_b16|med|paeth|planar,0.066,1.008,+0.942,0.0313,5
 kodak_kodim05,7.412,med,6.011,6.038,+0.027,453.0755,1
 kodak_kodim08,7.692,med,5.548,5.575,+0.026,273.3113,1
 kodak_kodim13,7.482,weighted,6.256,6.282,+0.026,461.8275,1

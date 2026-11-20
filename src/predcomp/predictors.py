@@ -1,4 +1,4 @@
-"""Tryby predykcji — każdy zwraca pełną mapę predykcji (przyczynową w.r.t. raster)."""
+"""Tryby predykcji: każdy zwraca pełną mapę predykcji (przyczynową w.r.t. raster)."""
 
 from __future__ import annotations
 
@@ -113,15 +113,16 @@ def pred_quadratic_row(img: np.ndarray) -> np.ndarray:
     return out
 
 
-LPC_COEFF_BITS = 10
+# Stałoprzecinkowo: round(c * 256) / 256 (dokładne ±1, ±1/2, ±2, …).
+# Side-info LPC 2D: k = round(c*256) ∈ [-512, 512] → 11 bitów na współczynnik.
+LPC_FRAC = 256
+LPC_COEFF_BITS = 11
 
 
-def quantize_lpc_coeffs(coeffs: np.ndarray, bits: int = LPC_COEFF_BITS) -> np.ndarray:
-    """Współczynniki w przybliżeniu [-2, 2] na `bits` bitów (odzwarzalne między maszynami)."""
-    levels = (1 << bits) - 1
-    scale = levels / 4.0
-    q = np.clip(np.rint((coeffs + 2.0) * scale), 0, levels)
-    return q / scale - 2.0
+def quantize_lpc_coeffs(coeffs: np.ndarray, frac: int = LPC_FRAC) -> np.ndarray:
+    """Kwantyzacja: round(c·frac)/frac, zakres [-2, 2] włącznie."""
+    k = np.clip(np.rint(coeffs * frac), -2 * frac, 2 * frac)
+    return k / float(frac)
 
 
 def _fit_lpc(samples: np.ndarray, order: int) -> np.ndarray | None:

@@ -1,4 +1,4 @@
-"""Metryki: histogram, energia, entropia, Huffman — wspólne np.unique."""
+"""Metryki: histogram, energia, entropia, Huffman (wspólne np.unique)."""
 
 from __future__ import annotations
 

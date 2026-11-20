@@ -26,7 +26,7 @@ class RemoteImage:
     license_note: str
 
 
-# Kodak Lossless True Color Image Suite — https://r0k.us/graphics/kodak/
+# Kodak Lossless True Color Image Suite – https://r0k.us/graphics/kodak/
 # (Eastman Kodak, udostępnione do nieograniczonego użytku wg maintainerów zestawu)
 KODAK = [
     RemoteImage(
@@ -34,46 +34,46 @@ KODAK = [
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim05.png",
         "scena złożona / dużo detalu (rowery, targ)",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
     RemoteImage(
         "kodak_kodim08",
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim08.png",
         "architektura / ostre krawędzie i linie",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
     RemoteImage(
         "kodak_kodim13",
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim13.png",
         "tekstura naturalna (woda, skały)",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
     RemoteImage(
         "kodak_kodim15",
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim15.png",
         "portret / gładkie tony skóry + detale",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
     RemoteImage(
         "kodak_kodim19",
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim19.png",
         "krajobraz z dominantą (latarnia) + niebo",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
     RemoteImage(
         "kodak_kodim23",
         "kodak",
         "https://r0k.us/graphics/kodak/kodak/kodim23.png",
         "obiekt z gładkimi obszarami i krawędziami (papuga)",
-        "Kodak suite — unrestricted usage (r0k.us)",
+        "Kodak suite – unrestricted usage (r0k.us)",
     ),
 ]
 
-# Wikimedia Commons — tylko PD / CC0 (tytuły File:...)
+# Wikimedia Commons – tylko PD / CC0 (tytuły File:...)
 WIKIMEDIA = [
     RemoteImage(
         "wiki_field_texture",

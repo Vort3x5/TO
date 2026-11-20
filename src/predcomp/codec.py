@@ -27,7 +27,7 @@ def decode(residuals: np.ndarray, predict_map: PredictMap) -> np.ndarray:
     """
     Sekwencyjna rekonstrukcja (przyczynowa).
 
-    Koszt O(H·W) wywołań predict_map — OK do weryfikacji na małych obrazach;
+    Koszt O(H·W) wywołań predict_map; OK do weryfikacji na małych obrazach;
     benchmark używa wyłącznie encode.
     """
     res = np.asarray(residuals, dtype=np.int16)

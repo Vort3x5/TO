@@ -11,6 +11,7 @@ python -m predcomp.cli samples
 python -m predcomp.cli fetch-data
 python -m predcomp.cli benchmark --predictors quick --summarize
 python -m predcomp.cli verify data/real/kodak_kodim15.png --full-decode --crop 24x40 --lpc2d
+# LPC 2D: domyślny wycinek weryfikacji 140x140
 python -m predcomp.cli lpc2d data/real
 ```
 
@@ -32,8 +33,8 @@ Wyniki robocze: `results/` (gitignore). Kopie do sprawozdania: `sprawozdanie/dan
 
 - **Sąsiedzi:** `left`, `above`, `two_left`, `three_left`, `two_above`
 - **Funkcje:** `avg2`, `avg3`, `planar`, `weighted`, `quadratic_row`, `median`, `med` (JPEG-LS), `paeth`
-- **LPC 1D:** `lpc_{row,col}_o{1,2,3}_b{8,16,32,64}` (współczynniki w stałym przecinku; pierwszy segment = left)
-- **LPC 2D:** CLI `lpc2d` (A,B,C,D + współczynniki jako informacja dodatkowa; przy prawej krawędzi D=B)
+- **LPC 1D:** `lpc_{row,col}_o{1,2,3}_b{8,16,32,64}` (współczynniki `round(c·256)/256`; pierwszy segment = left)
+- **LPC 2D:** CLI `lpc2d` (A,B,C,D + side-info 11 bit/współczynnik; przy prawej krawędzi D=B)
 - **Adaptacja:** `selector_b8` – lokalny wybór {left, above, planar}
 
 Predyktory w rejestrze są przyczynowe. LPC 2D dokłada narzut na współczynniki.

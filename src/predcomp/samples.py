@@ -52,7 +52,7 @@ def _noise(size: int = 128, seed: int = 1) -> np.ndarray:
 
 
 def _naturalish(size: int = 128, seed: int = 2) -> np.ndarray:
-    """Szum 1/f-ish + blur — przybliżenie zdjęcia naturalnego bez zewnętrznych plików."""
+    """Szum 1/f-ish + blur: przybliżenie zdjęcia naturalnego bez zewnętrznych plików."""
     rng = np.random.default_rng(seed)
     spectrum = rng.normal(size=(size, size)) + 1j * rng.normal(size=(size, size))
     fy = np.fft.fftfreq(size)[:, None]

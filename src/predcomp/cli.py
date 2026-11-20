@@ -417,8 +417,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
         if not ok:
             failed += 1
     if args.lpc2d:
+        lpc_crop = crop or (140, 140)
+        print(f"LPC 2D: wycinek {lpc_crop[0]}x{lpc_crop[1]}")
         for b in (8, 16, 32, 64):
-            ok = verify_lpc2d(img, block=b, crop=crop or (24, 40))
+            ok = verify_lpc2d(img, block=b, crop=lpc_crop)
             status = "OK" if ok else "FAIL"
             print(f"{status:4s}  lpc2d_b{b}")
             if not ok:
@@ -512,7 +514,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--lpc2d",
         action="store_true",
-        help="dodatkowo sprawdź dekoder LPC 2D (domyślnie wycinek 24x40)",
+        help="dodatkowo sprawdź dekoder LPC 2D (domyślnie wycinek 140x140)",
     )
     s.set_defaults(func=cmd_verify)
 
