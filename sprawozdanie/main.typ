@@ -29,17 +29,14 @@
     gutter: 1.2cm,
     align(left)[
       *Zespół* \
-      \[Imię Nazwisko\] – osoba A \
-      \[Imię Nazwisko\] – osoba B \
-      \[Imię Nazwisko\] – osoba C \
-      \[Imię Nazwisko\] – osoba D
+      \Szymon Boniuk\
+      \Karolina Świątek\
+      \Piotr Świtaj\
+      \Michał Kopyciński\
     ],
     align(left)[
       *Prowadzący* \
-      \[dr inż. …\] \
-      \
-      *Repozytorium* \
-      `predcomp` (Python, Nix)
+      \dr inż. Grzegorz Galiński \
     ],
   )
   #v(1.2cm)
@@ -412,20 +409,19 @@ oraz pełnym odtworzeniem: rejestr na $24 times 40$, LPC 2D na $140 times 140$.
     inset: 5pt,
     stroke: 0.5pt + luma(180),
     [*Os.*], [*Co zrobiła*],
-    [A],
+    [Szymon Boniuk],
     [Środowisko Nix, wczytywanie/zapis PNG, generator próbek syntetycznych,
       pobieranie Kodak/Wikimedia i opis zbioru w sprawozdaniu.],
-    [B],
+    [Piotr Świtaj],
     [Predyktory (sąsiedzi, MED, Paeth, selector), LPC 1D/2D z kwantyzacją
       i wspólną obsługą krawędzi, dekoder LPC 2D.],
-    [C],
+    [Michał Kopyciński],
     [Metryki (energia, entropia), Huffman z książką kodową, ścieżka
       kodowania/weryfikacji oraz testy odtworzenia na wycinkach.],
-    [D],
+    [Karolina Świątek],
     [Benchmarki, wykresy, tabele LPC 2D na 11 zdjęciach, redakcja
       sprawozdania Typst i wnioski.],
   ),
-  caption: [Podział pracy. Udział orientacyjny: po ok. 25%.],
 )
 
 #v(0.35em)
