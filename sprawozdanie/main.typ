@@ -101,7 +101,7 @@ bloku.
 Sąsiedzi $A$ (lewy), $B$ (górny), $C$ (górny-lewy) są wspólni dla trybów
 opartych na `_neighbors`: przy $x=0$ przyjmujemy $A := B$ oraz $C := B$,
 przy $y=0$ jest $B := A$ oraz $C := A$ (punkt $(0,0)$ zostaje 0). Dzięki temu
-`left`, `above`, `planar` i LPC dzielą tę samą obsługę krawędzi — na brzegu
+`left`, `above`, `planar` i LPC dzielą tę samą obsługę krawędzi; na brzegu
 `planar` i `avg3` redukują się do jednego znanego sąsiada.
 
 == Tryby bez informacji dodatkowej
@@ -129,9 +129,10 @@ przy $y=0$ jest $B := A$ oraz $C := A$ (punkt $(0,0)$ zostaje 0). Dzięki temu
 )
 
 *`selector_b8`.* W każdym bloku $8 times 8$ wybieramy tryb spośród
-`left`, `above` i `planar` według energii błędu na znanej ramce
-przyczynowej (wiersz nad blokiem i lewa krawędź), bez pikseli z wnętrza
-bloku — wybór jest więc przyczynowy.
+`left`, `above` i `planar` według energii błędu na dostępnej ramce
+przyczynowej: wiersz nad blokiem, kolumna $b_x-1$ z wierszy *powyżej*
+bloku oraz (gdy $b_x>0$) lewa krawędź bieżącego wiersza bloku. Pikseli
+z wnętrza bloku nie używamy.
 
 *LPC 1D.* Współczynniki z poprzedniego okna (najmniejsze kwadraty, bez wyrazu
 wolnego). Przy rzędzie macierzy mniejszym od rzędu modelu wracamy do `left`
@@ -164,12 +165,14 @@ $H_0$.
 
 ```
 python -m predcomp.cli benchmark --predictors quick --summarize
-python -m predcomp.cli benchmark --predictors lpc_row --data DIR --out results/lpc_sweep
+python -m predcomp.cli benchmark --predictors lpc_row \
+  --data data/real/kodak_kodim15.png --out results/lpc_sweep
 python -m predcomp.cli lpc2d data/real
 python -m predcomp.cli verify IMAGE --full-decode --crop 24x40
 python -m predcomp.cli verify IMAGE --predictors left --lpc2d
 ```
 
+`--data` przyjmuje katalog albo pojedynczy PNG (jak `lpc2d`).
 `--crop` dotyczy tylko rejestru; LPC 2D ma domyślnie wycinek $140 times 140$
 (`--lpc2d-crop` zmienia go niezależnie). `summarize` przy remisie wypisuje
 wszystkich zwycięzców. CSV: `sprawozdanie/dane/`.
@@ -262,8 +265,8 @@ wszystkich 11. Na syntetyce LPC bywa lepsze (np. szum, wybrane gradienty).
 #figure(
   image("figs/kodak_kodim15_lpc_sweep.png", width: 86%),
   caption: [LPC wierszowe na `kodim15`: $H$ względem $B$ dla rzędów 1–3.
-    Odtworzenie: `benchmark --predictors lpc_row`. CSV:
-    `sprawozdanie/dane/lpc_row_sweep.csv`.],
+    Odtworzenie: `benchmark --predictors lpc_row --data data/real/kodak_kodim15.png`.
+    CSV: `sprawozdanie/dane/lpc_row_sweep.csv`.],
 )
 
 #figure(
@@ -315,6 +318,8 @@ wszystkich 11. Na syntetyce LPC bywa lepsze (np. szum, wybrane gradienty).
     (przy najlepszym $B=32$).],
 )
 
+#pagebreak()
+
 == Huffman
 
 Na zdjęciach $Delta$ jest zwykle $0.02$–$0.05$ bit/piksel. Przy bardzo małej
@@ -359,9 +364,7 @@ entropii $overline(L)$ nie spada poniżej ok. 1. Fragment książki dla
     [lpc_row_o1_b16], [4.76], [4.85], [+0.09], [1],
     [quadratic_row], [5.14], [5.31], [+0.17], [0],
   ),
-  caption: [Średnie po 18 obrazach. \*remisy liczone jako wspólne zwycięstwa.
-    `planar` wraca do 5 wygranych (m.in. `naturalish`, `smooth_blobs`) po
-    poprawnej obsłudze $C$ na krawędzi.],
+  caption: [Średnie po 18 obrazach. \*remisy liczone jako wspólne zwycięstwa.],
 )
 
 #figure(
@@ -387,10 +390,10 @@ Predykcja pomaga przy korelacji przestrzennej i szkodzi przy szumie
 niezależnym. Entropia reszt powyżej 8 bitów wynika z alfabetu 511-symbolowego;
 po `mod 256` wracamy blisko $H_0$.
 
-Najlepszy tryb bez informacji dodatkowej to `med`. `planar` dobrze radzi
-sobie na gładkich polach (`smooth_blobs`, `naturalish`), gdy krawędzie mają
-poprawne $C$. LPC 1D, przy wspólnej obsłudze krawędzi, przegrywa z sąsiadem
-w tym samym kierunku na zdjęciach rzeczywistych; na syntetyce bywa lepiej.
+Najlepszy tryb bez informacji dodatkowej to `med`. `planar` ($A+B-C$) dobrze
+opisuje lokalnie płaskie obszary (`smooth_blobs`, `naturalish`). LPC 1D,
+przy wspólnej obsłudze krawędzi, przegrywa z sąsiadem w tym samym kierunku
+na zdjęciach rzeczywistych; na syntetyce bywa lepiej.
 LPC 2D z narzutem współczynników wygrywa z `med` na 8 z 11 zdjęć (przegrywa
 przy ostrych liniach). Typowy dobry rozmiar bloku to 32 lub 64; na `kodim15`
 zależność od $B$ jest płaska, na innych obrazach rozrzut bywa większy.

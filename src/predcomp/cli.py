@@ -31,10 +31,14 @@ def _default_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
-def _collect_images(data_dir: Path) -> list[Path]:
-    """PNG w katalogu i podkatalogach, bez `_raw`."""
+def _collect_images(path: Path) -> list[Path]:
+    """Jeden PNG albo wszystkie PNG w katalogu/podkatalogach (bez `_raw`)."""
+    if path.is_file():
+        return [path] if path.suffix.lower() == ".png" else []
+    if not path.is_dir():
+        return []
     return sorted(
-        p for p in data_dir.rglob("*.png") if "_raw" not in p.parts and p.is_file()
+        p for p in path.rglob("*.png") if "_raw" not in p.parts and p.is_file()
     )
 
 
@@ -154,6 +158,9 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
     images = _collect_images(data_dir) if data_dir.exists() else []
     if args.generate_samples or not images:
+        if data_dir.is_file():
+            print("brak obrazów w", data_dir, file=sys.stderr)
+            return 1
         synth = data_dir / "samples" if data_dir.name == "data" else data_dir
         print(f"generuję próbki syntetyczne: {synth}")
         generate_samples(synth, size=args.size)
@@ -474,7 +481,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument(
         "--data",
         default=str(root / "data"),
-        help="katalog z PNG (rekurencyjnie; domyślnie data/ = samples+real)",
+        help="katalog lub pojedynczy PNG (domyślnie data/ = samples+real)",
     )
     s.add_argument("--out", default=str(root / "results"))
     s.add_argument(
