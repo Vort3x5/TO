@@ -446,10 +446,10 @@ $24 times 40$, LPC 2D na $140 times 140$.
     [Szymon Boniuk],
     [Środowisko Nix, wczytywanie/zapis PNG, generator próbek syntetycznych,
       pobieranie Kodak/Wikimedia i opis zbioru w sprawozdaniu.],
-    [Piotr Świtaj],
+    [Michał Kopyciński],
     [Predyktory (sąsiedzi, MED, Paeth, selector), LPC 1D/2D z kwantyzacją
       i wspólną obsługą krawędzi, dekoder LPC 2D.],
-    [Michał Kopyciński],
+    [Piotr Świtaj],
     [Metryki (energia, entropia), Huffman z książką kodową, ścieżka
       kodowania/weryfikacji oraz testy odtworzenia na wycinkach.],
     [Karolina Świątek],
