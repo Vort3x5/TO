@@ -98,9 +98,9 @@ def plot_lpc_sweep(csv_path: str | Path, out_path: str | Path, image_name: str) 
             marker="o",
             label=f"rząd {order}",
         )
-    ax.set_xlabel("długość bloku B")
+    ax.set_xlabel("długość odcinka N")
     ax.set_ylabel("entropia reszt [bit/pix]")
-    ax.set_title(f"LPC 1D (wiersz) vs długość bloku: {image_name}")
+    ax.set_title(f"LPC 1D (wiersz) vs długość odcinka: {image_name}")
     ax.legend()
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -109,7 +109,7 @@ def plot_lpc_sweep(csv_path: str | Path, out_path: str | Path, image_name: str) 
 
 
 def plot_lpc2d_tradeoff(csv_path: str | Path, out_path: str | Path) -> None:
-    """H reszt, narzut side-info i suma vs rozmiar bloku LPC 2D."""
+    """H reszt, narzut współczynników i suma vs rozmiar bloku N (LPC 2D)."""
     with Path(csv_path).open(newline="") as f:
         rows = list(csv.DictReader(f))
     if not rows:
@@ -124,9 +124,9 @@ def plot_lpc2d_tradeoff(csv_path: str | Path, out_path: str | Path) -> None:
 
     fig, ax = plt.subplots(figsize=(8, 4.5))
     ax.plot(blocks, h, marker="o", label="H reszt")
-    ax.plot(blocks, side, marker="s", label="narzut side-info")
+    ax.plot(blocks, side, marker="s", label="narzut współczynników")
     ax.plot(blocks, total, marker="^", label="H + narzut")
-    ax.set_xlabel("rozmiar bloku")
+    ax.set_xlabel("rozmiar bloku N")
     ax.set_ylabel("bit / piksel")
     ax.set_title("LPC 2D: kompromis dopasowanie vs narzut współczynników")
     ax.legend()
