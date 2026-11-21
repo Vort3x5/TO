@@ -90,7 +90,7 @@ oraz pięć obrazów z Wikimedia Commons. Źródła: `data/real/SOURCES.md`.
 
 == Model
 
-Dla obrazu $I in {0,...,255}^(H times W)$ i predyktora $P$ predykcja to
+Dla obrazu $I in {0,...,255}^(h times w)$ i predyktora $P$ predykcja to
 $hat(I) = Q(P(I))$, a reszta $e = I - hat(I)$, gdzie $Q$ zaokrągla do
 liczb całkowitych w $[0,255]$. Obraz przeglądamy wiersz po wierszu, od lewej
 do prawej (porządek rastrowy). Każdy predyktor korzysta wyłącznie z pikseli
@@ -98,10 +98,10 @@ już odwiedzonych w tej kolejności (predykcja przyczynowa), więc dekoder może
 powtórzyć tę samą predykcję. LPC 2D dodatkowo zapisuje współczynniki bloku.
 
 Sąsiedzi $A$ (lewy), $B$ (górny), $C$ (górny-lewy) są wspólni dla trybów
-opartych na `_neighbors`: przy $x=0$ przyjmujemy $A := B$ oraz $C := B$,
-przy $y=0$ jest $B := A$ oraz $C := A$ (punkt $(0,0)$ zostaje 0). Dzięki temu
-`left`, `above`, `planar` i LPC dzielą tę samą obsługę krawędzi; na brzegu
-`planar` i `avg3` redukują się do jednego znanego sąsiada.
+korzystających z sąsiadów $A$, $B$, $C$: przy $x=0$ przyjmujemy $A := B$
+oraz $C := B$, przy $y=0$ jest $B := A$ oraz $C := A$ (punkt $(0,0)$ zostaje
+0). Dzięki temu `left`, `above`, `planar` i LPC dzielą tę samą obsługę
+krawędzi; na brzegu `planar` i `avg3` redukują się do jednego znanego sąsiada.
 
 == Tryby bez informacji dodatkowej
 
@@ -142,17 +142,17 @@ to rząd predyktora. Linię dzielimy na odcinki długości $N$.
 Współczynniki $c_k$ dla odcinka wyznaczamy metodą najmniejszych kwadratów
 na $N$ pikselach poprzedniego odcinka. Dekoder zna już te piksele, więc
 współczynników nie trzeba przesyłać. Pierwszy odcinek nie ma poprzednika
-i używa `left` (lub `above`). Do `left` wracamy też wtedy, gdy układ
-równań jest osobliwy, np. w stałym fragmencie wiersza. Współczynniki
-zaokrąglamy do wielokrotności $1\/256$ w przedziale $[-2, 2]$. Zmniejsza
-to ryzyko, że koder i dekoder na różnych maszynach policzą inne wartości,
-ale go nie usuwa.
+i używa `left` (lub `above`). Do tego samego predyktora wracamy też wtedy,
+gdy układ równań jest osobliwy, np. w stałym fragmencie wiersza.
+Współczynniki zaokrąglamy do wielokrotności $1\/256$ w przedziale $[-2, 2]$.
+Zmniejsza to ryzyko, że koder i dekoder na różnych maszynach policzą inne
+wartości, ale go nie usuwa.
 
 == LPC 2D z informacją dodatkową
 
 Obraz dzielimy na bloki $N times N$. W każdym bloku estymujemy
 $ hat(I) = alpha A + beta B + gamma C + delta D, $
-gdzie $D$ jest górnym-prawym sąsiadem; przy prawej krawędzi ($x = W-1$)
+gdzie $D$ jest górnym-prawym sąsiadem; przy prawej krawędzi ($x = w-1$)
 przyjmujemy $D = B$. Współczynniki wyznaczamy metodą najmniejszych
 kwadratów z pikseli samego bloku, więc w przeciwieństwie do LPC 1D
 dekoder ich nie zna i trzeba je zapisać w pliku. Cztery współczynniki
@@ -161,13 +161,18 @@ Dekoder odtwarza obraz sekwencyjnie z reszt i siatki współczynników.
 
 == Metryki
 
-Energia na piksel; dla oryginału także po odjęciu średniej.
-Entropia empiryczna $H$. Średnia długość Huffmana $overline(L)$ oraz
+Energia reszt na piksel: $E = 1\/(h w) sum e^2$. Dla oryginału liczymy ją
+po odjęciu średniej ($E_c$), żeby nie zależała od jasności obrazu.
+Entropia empiryczna: $H = -sum_s p_s log_2 p_s$, gdzie $p_s$ to częstość
+symbolu $s$; $H_0$ oznacza entropię oryginału, $H$ entropię reszt.
+Średnia długość słowa kodu Huffmana to $overline(L)$, a
 $Delta = overline(L) - H$.
 
 Reszty leżą w ${-255,...,255}$ (511 symboli), więc $H$ może przekroczyć
 8 bitów. Po redukcji modulo 256 (jak w PNG / JPEG-LS) entropia wraca bliżej
 $H_0$.
+
+#pagebreak()
 
 = Implementacja
 
@@ -187,9 +192,16 @@ python -m predcomp.cli verify IMAGE --predictors left --lpc2d
 $140 times 140$ (`--lpc2d-crop` zmienia go niezależnie). `summarize` przy
 remisie wypisuje wszystkich zwycięzców. CSV: `sprawozdanie/dane/`.
 
+Test przyczynowości zeruje wszystkie piksele od wybranej pozycji dalej
+i sprawdza, że predykcje dla wcześniejszych pozycji się nie zmieniają.
+Pełne dekodowanie odtwarza obraz piksel po pikselu wyłącznie z reszt
+(a dla LPC 2D także ze współczynników) i porównuje wynik z oryginałem.
+
 = Wyniki
 
-Benchmark `quick`: 18 obrazów $times$ 17 trybów.
+Benchmark `quick`: 18 obrazów $times$ 17 trybów. Zestaw `quick` to tryby
+z tabeli 1, z LPC w wariantach `lpc_row_o1_b16`, `lpc_row_o2_b16`,
+`lpc_row_o3_b32` i `lpc_col_o2_b16`.
 
 == Histogramy
 
@@ -233,8 +245,8 @@ Benchmark `quick`: 18 obrazów $times$ 17 trybów.
 #figure(
   image("figs/gradient_h_bars.png", width: 88%),
   caption: [Gradient poziomy. Przy `left` reszta jest prawie stała ($approx 2$),
-    stąd $H approx 0.13$. LPC rzędu 2 na kolejnych segmentach zeruje błąd, ale
-    pierwszy segment zostaje jak `left`: w resztach są jednocześnie zera i
+    stąd $H approx 0.13$. LPC rzędu 2 na kolejnych odcinkach zeruje błąd, ale
+    pierwszy odcinek zostaje jak `left`: w resztach są jednocześnie zera i
     dwójki, więc $H$ rośnie do ok. 0,59. Rząd 1 bez wyrazu wolnego nie modeluje
     stałego przyrostu ($H approx 2.08$). Niższa energia błędu nie musi iść w
     parze z niższą entropią.],
@@ -256,6 +268,8 @@ Benchmark `quick`: 18 obrazów $times$ 17 trybów.
   image("figs/kodak_kodim08_bars.png", width: 88%),
   caption: [`kodim08`: `med` i `paeth` przed pozostałymi trybami.],
 )
+
+#pagebreak()
 
 == LPC 1D: poprawki i zależność od $N$
 
@@ -415,10 +429,10 @@ przy ostrych liniach). Typowy dobry rozmiar bloku to 32 lub 64; na `kodim15`
 zależność od $N$ jest płaska, na innych obrazach rozrzut bywa większy.
 
 Przy przeglądzie kodu poprawiliśmy zerowy pierwszy odcinek LPC oraz
-obsługę osobliwych układów; rampy wracają do niskiego $H$ dzięki sprawdzeniu
-rzędu macierzy i siatce $1\/256$. Bezstratność sprawdziliśmy przyczynowością
-oraz pełnym odtworzeniem: tryby z tabeli 1 na wycinku $24 times 40$,
-LPC 2D na $140 times 140$.
+obsługę osobliwych układów; gradienty wracają do niskiego $H$ dzięki
+sprawdzeniu rzędu macierzy i siatce $1\/256$. Bezstratność sprawdziliśmy
+testem przyczynowości oraz pełnym odtworzeniem: tryby z tabeli 1 na wycinku
+$24 times 40$, LPC 2D na $140 times 140$.
 
 = Podział zadań
 
