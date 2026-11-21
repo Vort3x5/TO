@@ -99,9 +99,10 @@ przyczynowe w porządku rastrowym. LPC 2D dodatkowo przesyła współczynniki
 bloku.
 
 Sąsiedzi $A$ (lewy), $B$ (górny), $C$ (górny-lewy) są wspólni dla trybów
-opartych na `_neighbors`: przy $x=0$ przyjmujemy $A := B$, przy $y=0$ jest
-$B := A$ (punkt $(0,0)$ zostaje 0). Dzięki temu `left`, `above` i LPC dzielą
-tę samą obsługę krawędzi.
+opartych na `_neighbors`: przy $x=0$ przyjmujemy $A := B$ oraz $C := B$,
+przy $y=0$ jest $B := A$ oraz $C := A$ (punkt $(0,0)$ zostaje 0). Dzięki temu
+`left`, `above`, `planar` i LPC dzielą tę samą obsługę krawędzi — na brzegu
+`planar` i `avg3` redukują się do jednego znanego sąsiada.
 
 == Tryby bez informacji dodatkowej
 
@@ -126,6 +127,11 @@ tę samą obsługę krawędzi.
   ),
   caption: [Predyktory w `predcomp`.],
 )
+
+*`selector_b8`.* W każdym bloku $8 times 8$ wybieramy tryb spośród
+`left`, `above` i `planar` według energii błędu na znanej ramce
+przyczynowej (wiersz nad blokiem i lewa krawędź), bez pikseli z wnętrza
+bloku — wybór jest więc przyczynowy.
 
 *LPC 1D.* Współczynniki z poprzedniego okna (najmniejsze kwadraty, bez wyrazu
 wolnego). Przy rzędzie macierzy mniejszym od rzędu modelu wracamy do `left`
@@ -199,12 +205,12 @@ Benchmark `quick`: 18 obrazów $times$ 17 trybów.
     inset: 4.5pt,
     stroke: 0.5pt + luma(180),
     [*Obraz*], [$E_c$ oryg.], [`left`], [`planar`], [`med`], [`LPC o1`],
-    [gradient_h], [5463], [4.0], [40], [0.03], [2.0],
-    [smooth_blobs], [2202], [12], [181], [4.2], [14],
-    [kodim15], [6712], [222], [162], [82], [238],
-    [kodim08], [3802], [1065], [415], [273], [1087],
-    [manuscript], [1940], [824], [802], [517], [830],
-    [noise], [5468], [10935], [14174], [10941], [9946],
+    [gradient_h], [5463], [4.0], [0.03], [0.03], [2.0],
+    [smooth_blobs], [2202], [12], [1.5], [4.2], [14],
+    [kodim15], [6712], [222], [113], [82], [238],
+    [kodim08], [3802], [1065], [368], [273], [1087],
+    [manuscript], [1940], [824], [772], [517], [829],
+    [noise], [5468], [10935], [14098], [10941], [9946],
   ),
   caption: [$E_c$: oryginał po odjęciu średniej. `LPC o1` = `lpc_row_o1_b16`.],
 )
@@ -342,10 +348,10 @@ entropii $overline(L)$ nie spada poniżej ok. 1. Fragment książki dla
     inset: 5pt,
     stroke: 0.5pt + luma(180),
     [*Predyktor*], [śr. $H$], [śr. $overline(L)$], [śr. $Delta$], [wygrane\*],
-    [med], [*4.05*], [*4.27*], [+0.23], [*12*],
+    [med], [*4.05*], [*4.27*], [+0.23], [*11*],
     [paeth], [4.10], [4.33], [+0.23], [3],
-    [selector_b8], [4.16], [4.36], [+0.20], [2],
-    [planar], [4.24], [4.47], [+0.23], [2],
+    [selector_b8], [4.14], [4.34], [+0.20], [2],
+    [planar], [4.19], [4.43], [+0.24], [5],
     [avg2], [4.24], [4.42], [+0.18], [2],
     [left], [4.41], [4.61], [+0.20], [1],
     [lpc_col_o2_b16], [4.53], [4.67], [+0.15], [1],
@@ -353,7 +359,9 @@ entropii $overline(L)$ nie spada poniżej ok. 1. Fragment książki dla
     [lpc_row_o1_b16], [4.76], [4.85], [+0.09], [1],
     [quadratic_row], [5.14], [5.31], [+0.17], [0],
   ),
-  caption: [Średnie po 18 obrazach. \*remisy liczone jako wspólne zwycięstwa.],
+  caption: [Średnie po 18 obrazach. \*remisy liczone jako wspólne zwycięstwa.
+    `planar` wraca do 5 wygranych (m.in. `naturalish`, `smooth_blobs`) po
+    poprawnej obsłudze $C$ na krawędzi.],
 )
 
 #figure(
@@ -379,12 +387,13 @@ Predykcja pomaga przy korelacji przestrzennej i szkodzi przy szumie
 niezależnym. Entropia reszt powyżej 8 bitów wynika z alfabetu 511-symbolowego;
 po `mod 256` wracamy blisko $H_0$.
 
-Najlepszy tryb bez informacji dodatkowej to `med`. LPC 1D, przy wspólnej
-obsłudze krawędzi, przegrywa z sąsiadem w tym samym kierunku na zdjęciach
-rzeczywistych; na syntetyce bywa lepiej. LPC 2D z narzutem współczynników
-wygrywa z `med` na 8 z 11 zdjęć (przegrywa przy ostrych liniach). Typowy
-dobry rozmiar bloku to 32 lub 64; na `kodim15` zależność od $B$ jest płaska,
-na innych obrazach rozrzut bywa większy.
+Najlepszy tryb bez informacji dodatkowej to `med`. `planar` dobrze radzi
+sobie na gładkich polach (`smooth_blobs`, `naturalish`), gdy krawędzie mają
+poprawne $C$. LPC 1D, przy wspólnej obsłudze krawędzi, przegrywa z sąsiadem
+w tym samym kierunku na zdjęciach rzeczywistych; na syntetyce bywa lepiej.
+LPC 2D z narzutem współczynników wygrywa z `med` na 8 z 11 zdjęć (przegrywa
+przy ostrych liniach). Typowy dobry rozmiar bloku to 32 lub 64; na `kodim15`
+zależność od $B$ jest płaska, na innych obrazach rozrzut bywa większy.
 
 Przy przeglądzie kodu poprawiliśmy zerowy pierwszy segment LPC oraz
 obsługę osobliwych układów; rampy wracają do niskiego $H$ dzięki sprawdzeniu

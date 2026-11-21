@@ -14,8 +14,8 @@ PredictMap = Callable[[np.ndarray], np.ndarray]
 def _neighbors(img: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """A=lewy, B=górny, C=górny-lewy.
 
-    Wspólna obsługa krawędzi: przy x=0 jest A:=B (górny), przy y=0 jest B:=A
-    (lewy); (0,0) zostaje 0. Dzięki temu left/above/LPC dzielą tę samą konwencję.
+    Wspólna obsługa krawędzi: przy x=0 jest A:=B i C:=B, przy y=0 jest B:=A
+    i C:=A; (0,0) zostaje 0. Dzięki temu left/above/planar/LPC dzielą konwencję.
     """
     imgf = img.astype(np.float64, copy=False)
     a = np.zeros_like(imgf)
@@ -23,10 +23,12 @@ def _neighbors(img: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     c = np.zeros_like(imgf)
     a[:, 1:] = imgf[:, :-1]
     b[1:, :] = imgf[:-1, :]
-    # najpierw A na pierwszej kolumnie z B, potem B na pierwszym wierszu z A
-    a[1:, 0] = b[1:, 0]
-    b[0, 1:] = a[0, 1:]
     c[1:, 1:] = imgf[:-1, :-1]
+    # najpierw A/C na pierwszej kolumnie z B, potem B/C na pierwszym wierszu z A
+    a[1:, 0] = b[1:, 0]
+    c[1:, 0] = b[1:, 0]
+    b[0, 1:] = a[0, 1:]
+    c[0, 1:] = a[0, 1:]
     return a, b, c
 
 
