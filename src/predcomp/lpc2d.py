@@ -1,4 +1,4 @@
-"""LPC 2D w blokach: sąsiedzi A,B,C,D, współczynniki jako side-info, encode/decode."""
+"""LPC 2D w blokach: Î = αA+βB+γC+δD; 4 współczynniki × 11 bitów w side-info."""
 
 from __future__ import annotations
 
@@ -7,22 +7,17 @@ from dataclasses import dataclass
 import numpy as np
 
 from .codec import quantize_pred
-from .predictors import LPC_COEFF_BITS, quantize_lpc_coeffs
+from .predictors import LPC_COEFF_BITS, _neighbors, quantize_lpc_coeffs
 from .stats import analyze
 
 N_COEFFS = 4
 
 
 def _neighbors4(img: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """A=lewy, B=górny, C=górny-lewy, D=górny-prawy; przy x=w-1 przyjmujemy D=B."""
+    """A,B,C jak w `_neighbors`; D=górny-prawy, przy x=w-1 jest D:=B."""
+    a, b, c = _neighbors(img)
     imgf = img.astype(np.float64, copy=False)
-    a = np.zeros_like(imgf)
-    b = np.zeros_like(imgf)
-    c = np.zeros_like(imgf)
     d = np.zeros_like(imgf)
-    a[:, 1:] = imgf[:, :-1]
-    b[1:, :] = imgf[:-1, :]
-    c[1:, 1:] = imgf[:-1, :-1]
     d[1:, :-1] = imgf[:-1, 1:]
     d[:, -1] = b[:, -1]
     return a, b, c, d
@@ -65,11 +60,16 @@ def _predict_pixel(
     x: int,
     coeffs: np.ndarray,
 ) -> float:
+    """Ta sama konwencja krawędzi co `_neighbors` / left."""
     h, w = recon.shape
-    if y == 0:
-        return float(recon[y, x - 1]) if x > 0 else 0.0
+    if y == 0 and x == 0:
+        return 0.0
     if x == 0:
+        # A := B
         return float(recon[y - 1, x])
+    if y == 0:
+        # B := A
+        return float(recon[y, x - 1])
     a = float(recon[y, x - 1])
     b = float(recon[y - 1, x])
     c = float(recon[y - 1, x - 1])

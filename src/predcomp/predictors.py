@@ -12,13 +12,20 @@ PredictMap = Callable[[np.ndarray], np.ndarray]
 
 
 def _neighbors(img: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """A=lewy, B=górny, C=górny-lewy; brakujący sąsiad = 0."""
+    """A=lewy, B=górny, C=górny-lewy.
+
+    Wspólna obsługa krawędzi: przy x=0 jest A:=B (górny), przy y=0 jest B:=A
+    (lewy); (0,0) zostaje 0. Dzięki temu left/above/LPC dzielą tę samą konwencję.
+    """
     imgf = img.astype(np.float64, copy=False)
     a = np.zeros_like(imgf)
     b = np.zeros_like(imgf)
     c = np.zeros_like(imgf)
     a[:, 1:] = imgf[:, :-1]
     b[1:, :] = imgf[:-1, :]
+    # najpierw A na pierwszej kolumnie z B, potem B na pierwszym wierszu z A
+    a[1:, 0] = b[1:, 0]
+    b[0, 1:] = a[0, 1:]
     c[1:, 1:] = imgf[:-1, :-1]
     return a, b, c
 
@@ -119,23 +126,9 @@ LPC_FRAC = 256
 LPC_COEFF_BITS = 11
 
 
-def quantize_lpc_coeffs(
-    coeffs: np.ndarray,
-    frac: int = LPC_FRAC,
-    *,
-    force_sum_one: bool = True,
-) -> np.ndarray:
-    """Kwantyzacja: round(c·frac)/frac, zakres [-2, 2].
-
-    Przy force_sum_one poprawiamy ostatni współczynnik tak, by suma k równała
-    się frac (czyli suma c = 1) – potrzebne przy osobliwym lstsq, które zwraca
-    (1/3,1/3,1/3) nieprzedstawialne dokładnie na siatce 1/256.
-    """
+def quantize_lpc_coeffs(coeffs: np.ndarray, frac: int = LPC_FRAC) -> np.ndarray:
+    """Kwantyzacja: round(c·frac)/frac, zakres [-2, 2] włącznie."""
     k = np.clip(np.rint(np.asarray(coeffs, dtype=np.float64) * frac), -2 * frac, 2 * frac)
-    if force_sum_one and k.size > 0:
-        k = k.copy()
-        k[-1] += frac - int(k.sum())
-        k[-1] = float(np.clip(k[-1], -2 * frac, 2 * frac))
     return k / float(frac)
 
 
@@ -204,13 +197,12 @@ def _lpc_line(line: np.ndarray, order: int, block: int) -> np.ndarray:
 def make_lpc_row(order: int, block: int) -> PredictMap:
     def predict(img: np.ndarray) -> np.ndarray:
         imgf = img.astype(np.float64, copy=False)
-        h, w = imgf.shape
+        a, b, _ = _neighbors(imgf)
         out = np.empty_like(imgf)
-        for y in range(h):
+        for y in range(imgf.shape[0]):
             out[y] = _lpc_line(imgf[y], order, block)
-            # x=0: fallback górny (jak wcześniej)
-            if h > 0:
-                out[y, 0] = imgf[y - 1, 0] if y > 0 else 0.0
+            # ta sama krawędź co left: A (przy x=0 równe B)
+            out[y, 0] = a[y, 0]
         return out
 
     predict.__name__ = f"lpc_row_o{order}_b{block}"
@@ -220,13 +212,13 @@ def make_lpc_row(order: int, block: int) -> PredictMap:
 def make_lpc_col(order: int, block: int) -> PredictMap:
     def predict(img: np.ndarray) -> np.ndarray:
         imgf = img.astype(np.float64, copy=False)
-        # kolumny = LPC na wierszach transpozycji, potem fallback lewy na y=0
+        a, b, _ = _neighbors(imgf)
         out_t = np.empty_like(imgf.T)
         for x, col in enumerate(imgf.T):
             out_t[x] = _lpc_line(col, order, block)
         out = out_t.T
-        out[0, 1:] = imgf[0, :-1]
-        out[0, 0] = 0.0
+        # ta sama krawędź co above: B (przy y=0 równe A)
+        out[0, :] = b[0, :]
         return out
 
     predict.__name__ = f"lpc_col_o{order}_b{block}"
